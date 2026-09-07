@@ -1,0 +1,2 @@
+strands-agents[ollama]==1.54.0
+pypdf==6.17.0

@@ -1,0 +1,47 @@
+{
+  "files": [
+    {
+      "path": "browser_adapter.py",
+      "url": "./browser_adapter.py",
+      "sha256": "7eb9b56ed68940de381c342407a32480446175fb1630c382ea4dc1189ea766b6"
+    },
+    {
+      "path": "briefing.py",
+      "url": "./briefing.py",
+      "sha256": "62e5d54ca819096fdba0e8ad8823bb2a09ee9dea3c0676b05a598353c8a2cf3a"
+    },
+    {
+      "path": "sarah_local.py",
+      "url": "./sarah_local.py",
+      "sha256": "c5f9e07573175cb8b18959fde182e549767995f5a629dda191849b6ab983f83c"
+    },
+    {
+      "path": "shift_schedule.py",
+      "url": "./shift_schedule.py",
+      "sha256": "b216f13e8a1cd6acd89035fd00cbe87db6b56f31fa3c03f104da775877aa89e3"
+    },
+    {
+      "path": "staffing.py",
+      "url": "./staffing.py",
+      "sha256": "b278be5131c47c0f63b070525bfdbabe851f167088a08f1b21cf32f03c8d795a"
+    },
+    {
+      "path": "staffing_chat.py",
+      "url": "./staffing_chat.py",
+      "sha256": "cbc442bcfe9eeb565db5a2a1343424a71a0e4b0982d7ccfcab54cacdf9870771"
+    },
+    {
+      "path": "operating_hours.py",
+      "url": "./operating_hours.py",
+      "sha256": "c8b88c44be5a2ce926410243304477e08993287dac9f6c8793087abf03eb1b01"
+    },
+    {
+      "path": "vendor/pypdf.zip",
+      "url": "./vendor/pypdf.zip",
+      "sha256": "b71475358d069f9e389ba481061d57d68a9fc26dae58dafc38684f82ed689677"
+    }
+  ],
+  "runtime": "Pyodide 314.0.6",
+  "pypdf": "6.10.2",
+  "no_external_provider": true
+}

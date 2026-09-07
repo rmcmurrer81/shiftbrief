@@ -1,56 +1,49 @@
-# ShiftBrief — production changes to a usable handoff
+> Current source release: this repository includes the verified Desktop implementation and a separate no-install browser edition. See [BROWSER-BUILD.md](BROWSER-BUILD.md) to generate the static browser assets from pinned dependencies. Runtime binaries, personal state and the optional voice pack are excluded. Desktop setup requirements below apply to maintainers/users running the local server, not to judges opening the hosted browser build. Historical contest and test notes below retain their original verification scope.
 
-**Target:** Professional Agents track, [Agents for Humans](https://agentsforhumans.devpost.com/). Deadline **September 14, 2026, 8 p.m. Eastern / 5 p.m. Pacific**. The event lists **$40,000 in cash prizes**: $10,000 grand prize and $5,000 / $3,000 / $2,000 in each track. This entry is local software, not a deployed AWS service.
+# ShiftBrief · Team desk
 
-Double-click the Desktop **ShiftBrief** shortcut, or **START SHIFTBRIEF.cmd** in this folder. The launcher opens the browser only after the local service responds at `http://127.0.0.1:8797`. Opening the shortcut again restores the same saved workspace.
+Plan a real store, office or team week with recorded employee availability, staffing coverage and dated history. Talk to Sarah, review a proposal, then accept or edit it. Your own team starts empty. **Try fictional team** opens a separate example with five clearly fictional employees.
 
-## Try it
+## Start the desktop app
 
-1. Click **Try fictional shoot documents**. This imports source examples, not a prepared AI answer.
-2. Compare the call-sheet revisions: 07:00 becomes 08:30, the pier becomes Warehouse B, and the transport note still gives the old location.
-3. Click **Prepare handoff**. The real Strands agent reads the revision tools, identifies changes and conflicts, checks exact source quotations, and saves a briefing and suggested decisions.
-4. Open a source quotation, mark a decision done, and export the handoff as Markdown. Reload to see the saved checklist.
-5. Add your own PDF, text, Markdown or CSV, or paste text. Select **New revision: …** to preserve an update beside its earlier version. A later revision does not automatically mean an approved decision.
-6. Optionally enter one full local file path under **Watch one local file**. Only that exact file is checked every 15 seconds while the app runs. Pause or resume it in the source panel.
+On Windows with Python 3.11 or newer, open **START SHIFTBRIEF.cmd**. The text, staffing and TXT/Markdown/CSV workflows use Python's standard library; there is no first-run model download, API key or pip install. An existing app-local virtual environment is reused. You can also run `python server.py --open` and open `http://127.0.0.1:8797`.
 
-No crew messages are sent. Checklist actions are suggestions for a person to handle; checking a box records their own progress. Original files are never overwritten.
+The clean desktop ZIP does not include Python or a voice model. The no-install hosted-browser edition is a separate delivery route; do not describe this ZIP as working on a computer with no Python installed.
 
-## What is working
+## Your first week
 
-- Immutable revisions, exact line-position comparisons, deduplication, PDF page citations and explicit one-file watching.
-- A real `strands.Agent` using the native `OllamaModel` provider and `@tool` functions: `read_updates` then `save_shift_brief`.
-- Literal quote and source-snapshot validation before saving. If documents change mid-run, the result is rejected. Old handoffs remain visible and are marked outdated.
-- Four-model-call and six-tool-call limits. The agent stops after its validated save. An unavailable model produces an error while comparison and saved exports remain usable.
-- Persistent decision checklist, linked source excerpts, Markdown export, mobile layout, loopback-only service and local request-token/origin checks.
+1. Say **I hired a new employee**. Sarah asks their name and opens the adjacent seven-day availability form. Desktop shows all seven actual dates starting Sunday; a phone edits one date at a time. Enter Available, Off or Not provided. Choose hours/minutes/AM–PM separately. Check **Ends next day** for overnight availability. The hire date is editable. Save only real qualifications and availability; future weeks remain unknown.
+2. Say **We open 9am to 5pm Monday through Friday**, or use **Settings → Customer hours**. Review all weekdays and accept. Customer hours, opening staff arriving early and closing staff staying later are separate. Specific hours, overnight closing, 24-hour operation, closed weekdays and one-date overrides are supported. The starting 9–5 form values are not confirmed business facts; a week cannot be suggested until hours are reviewed.
+3. In Settings, record required roles/headcounts and the weekly projected-overtime threshold. Use `Team: 1` alone for general headcount, or distinct roles such as `Cashier: 1` and `Floor: 1`.
+4. Open the Sunday week and choose **Suggest week**. The proposal uses recorded availability, time off, employment dates and role qualifications. Review unfilled coverage, planned hours, projected overtime and employee preferences. Lunch breaks are not automatically assigned. **Edit proposed shifts** changes the draft; **Accept reviewed week** saves all seven dates in one transaction. Previous dated revisions remain in History.
+5. Choose a date and review its actual shift table and coverage intervals. **3D view** displays the same counts with perspective; the coverage table supplies the exact values. Phones have a focused week overview and a separate day detail screen. Lists, messages and history are paginated so the active controls stay visible.
 
-AI conclusions remain interpretations. Matching quotations do not prove every inference is right. The real test identified the schedule and destination conflict; one phrase generalized “not received” to “not sent.” The sources stay visible, and the prompt now explicitly preserves those distinct states. There is no claim of automatic factual approval.
+## Day-to-day work
 
-## Runtime and tests
+- **Find a 30 minute lunch for Maya on 2026-09-13** proposes break choices ranked by added role-coverage gaps. An explicit time/window is respected. Select and accept one; it is not applied by asking.
+- **Adam is sick on 2026-09-13** ranks eligible, recorded-available people not already working during that shift, from least projected overtime to most, then by weekly hours. Qualified adjacent 2–3 hour early/late extensions are included when possible. Partial coverage is labeled. Optional contact details create a call list only. Nobody is contacted, and the app does not claim anyone agreed to work. Accept an option after arranging it yourself.
+- **Lisa quit** asks for the first date she will no longer be available. The employee and earlier schedules remain in history. Conflicts in already-saved future shifts are flagged.
+- Record availability, preferences and time off in Employees/Requests. Cancelling a dated time-off request keeps its history. Stale employee forms and stale proposals cannot overwrite newer details.
+- **We are closed on Christmas** proposes an annual December 25 closure. **Next Thursday we are closed for a new system installation** shows the resolved exact date and your reason before acceptance. Full-day closures remove all staffing bands on that date, including overnight spillover and opening/closing buffers. Old accepted schedules stay intact and show conflicts until reviewed; no statutory holiday list is assumed.
+- Near the weekend, an in-app reminder points to the upcoming Sunday week if it has not been reviewed or its relevant saved state changed. There is no background email or automatic outreach.
+- **History** revisits exact dated revisions. Restoring creates a new revision and must satisfy current availability/hours constraints. **Export week** downloads shifts CSV, exact coverage intervals CSV and the dated JSON plans in one ZIP. No contact directory or unrelated team is included.
 
-The installed Desktop copy has its own Python 3.12 environment. It requires the already-installed **Ollama** service and **qwen3.5:9b** for AI. No model is downloaded or cloud account used at runtime. [Strands documents native Python Ollama tool support](https://strandsagents.com/docs/user-guide/concepts/model-providers/ollama/).
+Overnight work is projected into separate actual calendar-date rows; 24:00 marks midnight at the end of the shown date. Unknown availability is not inferred. Free-text preferences are shown for owner review, not silently interpreted as hard scheduling rules. The scheduler is a bounded deterministic proposal engine, not an optimal-schedule guarantee, general language model, attendance system, payroll system or labor-law assessment.
 
-For a fresh copy: install Python 3.12, then run `py -3.12 launch.py`. The launcher creates `.venv` and installs the pinned direct dependencies. `requirements-lock.txt` records the tested environment. To run manually: `.venv\Scripts\python.exe server.py --open`. Optional `--port` and `--state-dir` support isolated testing.
+## Sources and handoffs remain available
 
-Run `.venv\Scripts\python.exe -m unittest -q test_shiftbrief`. Fourteen tests cover PDF extraction, revision order, duplicate imports, exact citations, source changes during inference, checklist/export persistence, watch pause/scope, actual HTTP protections and the decorated Strands tool boundary with a fake model. They do not spend model time.
+Sources keeps exact original lines and their revisions. Sarah can help create a source note from your exact words, requiring YES before saving it, retrieve evidence, compare changes and prepare a saved cited handoff. Conclusions and unresolved decisions stay distinct. Source quotes and long findings are paginated with complete-wording controls.
 
-The actual browser-triggered Strands/Qwen run completed in **18.453 seconds**, with **4 findings and 3 suggested decisions**, executing both tools and saving real results. Browser checks verified export, checklist reload, 390-pixel layout and no JavaScript errors. That first QA dataset contained two repeated pairs of fictional documents; the sample button has since been made idempotent. See `evidence/` for the unchanged test receipt and generated handoff.
+PDF import is optional: install `requirements-local.txt` into your chosen runtime to enable it. Scanned PDFs need OCR outside this app. Watching a file is optional and checks only the exact selected local path; it does not scan folders.
 
-Current limits: 5 MB per imported file; 80 PDF pages; extractable text only (no OCR); at most eight documents and 36,000 serialized characters across their latest two revisions for one AI briefing. Larger imports can be compared, but require a focused excerpt workspace for synthesis. Watching is local and stops when the server stops. This is a single-owner local workspace, not multi-user hosting or a production notification service.
+## Optional capabilities and contest truth
 
-## Contest and provenance
+**Voice is optional.** The installed local app can discover the separately installed, owner-approved `sarah-voice-pack` beside it. Enabling voice plays actual saved Sarah replies using its CPU service. The clean app ZIP excludes the voice model and all generated speech. Text remains fully usable without it.
 
-[Official rules](https://agentsforhumans.devpost.com/rules) require a new in-window project using Strands, disclosure of incorporated pre-existing work, a public MIT/Apache repository, README, architecture diagram, public demo of at most five minutes, and AWS Builder ID. They also list AWS account signup. AgentCore deployment is optional. Registration, account requirements, public repository, demo and submission remain for the owner; none were completed automatically. Personal eligibility is subject to the listed age, location and affiliation conditions.
+**Strands/Ollama is optional and explicit.** Installing `requirements.txt` enables the real Strands agent route, which uses `read_updates` and `save_shift_brief` with an installed Ollama model. The free staffing/conversation engine is deterministic local code; it is not an LLM and must not be represented as the contest-required Strands agent by itself. The Agents for Humans rules require actual Strands work; retain the separately tested Strands route and describe the distinction honestly. No hosted-model credentials are needed for the standard team desk.
 
-ShiftBrief was created September 7, 2026. It is a new focused successor to the source-revision/evidence workflow explored in ClearTrail, built September 6 in the same event window. **ClearTrail's concept informed the design; its application code or personal state was not copied.** New Strands orchestration, production-specific handoff workflow, explicit file watching and decision checklist distinguish this entry. Older Sarah/ContextGate and current personal KiraWorld/Video Studio code or data are not included. Codex assisted implementation. Include this disclosure in the final entry.
+## Data and verification
 
-The [official prior AWS hackathon winners announcement](https://aws-agent-hackathon.devpost.com/updates/38140-congratulations-to-the-winners-of-the-aws-ai-agent-global-hackathon) names AgentShell Best Strands SDK Implementation. Its [creator description](https://devpost.com/software/agent-shell) describes a tool-driven sensing/action loop. Our design inference is to demonstrate an observable completed tool action and usable saved result, rather than a list of future capabilities. No AgentShell code is reused.
+All local state is under `data/`, with separate teams, employee record history, immutable dated schedule revisions and reviewed proposal hashes. Back up this directory for your own records. The public package excludes owner data, configuration, credentials, logs, generated speech and private media.
 
-## Submission work remaining
-
-- Review the actual app and generated handoff; decide whether this is the entry to submit.
-- Confirm registration, personal eligibility, AWS account and Builder ID requirements.
-- Publish only the clean source package with MIT license; exclude `.venv/`, `data/`, personal documents and tokens.
-- Record a five-minute-or-shorter public demo showing a real source edit, the exact difference, Strands tool calls, saved handoff, checked decision and export.
-- Add the project description, [architecture diagram](ARCHITECTURE.svg), technical/runtime instructions and reuse/AI-assistance disclosure to the submission.
-
-No purchase, paid cloud resource, public publishing, contest submission or external message was performed.
+See `TEST_RESULTS.md` for the measured workflow and responsive checks, and `BROWSER_API.md` for the reusable standard-library core and hosted-browser port contract.
