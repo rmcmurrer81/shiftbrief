@@ -20,6 +20,15 @@ def converse(store,thread,message):
  operating=operating_hours.converse(store,thread,message)
  if operating:return operating
  text=message.strip();low=text.casefold().strip(' .!?');data=staff.book(store);pending=thread.get('staffing_pending');dates=re.findall(r'\b\d{4}-\d{2}-\d{2}\b',text);key=dates[0] if dates else daily.book(store)['selected_date'];person=named(store,text)
+ # A denial or correction is not authorization to record an employment end.
+ employment_event=re.search(r'\b(?:quit|quitting|terminated|terminate|left the (?:company|team)|no longer works)\b',low)
+ negated=re.search(r"\b(?:not|never|didn't|doesn't|don't|isn't|wasn't|hasn't|haven't|won't)\b",low.replace('’',"'"))
+ employment_context=employment_event or (pending and pending.get('kind')=='end_date')
+ denial=negated or re.search(r'^(?:actually[, ]+)?no\b',low) or (pending and pending.get('kind')=='end_date' and re.search(r'\b(?:staying|still works|still working)\b',low))
+ if employment_context and denial:
+  if pending and pending.get('kind')=='end_date':thread['staffing_pending']=None
+  current=(' '+person['name']+' currently has a saved end date of '+person['end_date']+'. Review their employee details if that record needs correcting.') if person and person.get('end_date') else ''
+  return reply('Your message denies an employment change. I have not changed any employee end date or schedule, and any unfinished end-date question is closed.'+current,kind='staffing_clarification')
  if not dates:
   if re.search(r'\btoday\b',low):key=date.today().isoformat()
   elif re.search(r'\btomorrow\b',low):key=(date.today()+timedelta(days=1)).isoformat()

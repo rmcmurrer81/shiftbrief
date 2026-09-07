@@ -92,10 +92,23 @@ def accept(store,identity,sha):
  import staffing
  with store.lock:
   p=next((p for p in staffing.book(store).get('operating_proposals',[]) if p['id']==identity),None)
-  if not p or p.get('accepted_at') or p['sha256']!=sha or digest({k:v for k,v in p.items() if k!='sha256'})!=sha:raise ValueError('This operating-hours proposal is no longer current.')
+  if not p or p.get('accepted_at') or p.get('cancelled_at') or p['sha256']!=sha or digest({k:v for k,v in p.items() if k!='sha256'})!=sha:raise ValueError('This operating-hours proposal is no longer current.')
   if staffing.book(store)['operating_proposals'][-1]['id']!=identity:raise ValueError('A newer operating-hours proposal exists. Review the latest one.')
   if p['before_sha256']!=digest(settings(store)):raise ValueError('Operating hours changed. Review a new proposal first.')
   staffing.book(store)['settings']['operating_hours']=validate(p['config']);staffing.book(store)['settings']['hours_confirmed']=True;p['accepted_at']=now();staffing.book(store)['events'].append({'at':now(),'kind':'operating_hours_accepted','proposal_id':p['id']});store.save();return {'saved':True,'answer':'Saved the reviewed operating hours and closures. Existing schedules remain in history and show any conflicts; request a fresh week proposal to revise them.'}
+
+def withdraw_unaccepted(store,thread,message):
+ import staffing
+ with store.lock:
+  rows=staffing.book(store).get('operating_proposals',[]);p=rows[-1] if rows else None
+  withdrawn=bool(p and not p.get('accepted_at') and not p.get('cancelled_at'))
+  if withdrawn:
+   p['cancelled_at']=now();p['cancellation_reason']=message[:400]
+   staffing.book(store)['events'].append({'at':now(),'kind':'operating_proposal_withdrawn','proposal_id':p['id']})
+  thread['operating_proposal_id']=None;thread['operating_pending']=None
+  if withdrawn:store.save()
+  return withdrawn
+
 
 def describe(config):
  lines=[]
@@ -110,14 +123,32 @@ def converse(store,thread,message,today=None):
  pending=thread.get('operating_pending')
  if pending and re.search(r'\b(?:every day|daily|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b',low):
   text=pending['message']+' '+text;low=text.casefold();thread['operating_pending']=None
- if not re.search(r'\b(?:closed|closure|opening|closing|open|operating hours|24[ -]hours?|openers|closers)\b',low):return None
+ if not re.search(r'\b(?:closed|closure|opening|closing|close|open|operating hours|24[ -]hours?|openers|closers)\b',low):return None
  if re.search(r'\b(?:document|source|quote|handoff|decision|lunch)\b',low):return None
  if re.search(r'\b(?:show|what are|review)\b',low) and not re.search(r'\b(?:closed|close on)\b',low):return {'kind':'operating_hours','answer':describe(config)+'\nUse Settings to review customer hours and opening/closing staff buffers.'}
+ closure_words=bool(re.search(r'\b(?:closed|closure|closing|close)\b',low))
+ holiday=bool(re.search(r'\bchristmas\b',low));holiday_day=24 if re.search(r'\bchristmas\s+eve\b',low) else 25
+ reopening=bool(re.search(r"\b(?:not|never)\s+(?:be\s+)?(?:closed|closing)\b|\b(?:aren't|isn't|weren't|wasn't|won't)\s+(?:be\s+)?closed\b|\b(?:don't|doesn't|do not|does not|will not)\s+(?:close|be closed)\b|\bno longer\s+closed\b",low.replace('’',"'")))
+ unclear_closure=closure_words and (len(dates)>1 or bool(re.search(r'\b(?:except|unless|instead of|rather than|but not|morning|afternoon|evening|half.day)\b',low)) or (holiday and (len(re.findall(r'\bchristmas\b',low))>1 or bool(re.search(r'\b(?:week|weekend|season|party|around|before|after)\b',low)))) or bool(re.search(daily.RANGE,text,re.I)))
+ if holiday and dates and (date.fromisoformat(daily.day_key(dates[0])).month,date.fromisoformat(dates[0]).day)!=(12,holiday_day):unclear_closure=True
+ if unclear_closure:
+  withdraw_unaccepted(store,thread,text)
+  return {'kind':'operating_clarification','answer':'Please give one exact full-day closure date or recurring day, or use customer hours for a partial day. I have withdrawn the unfinished hours proposal and have not changed saved hours or schedules. I will not ignore an exception or guess which holiday date you mean.'}
+ if reopening:
+  withdrawn=withdraw_unaccepted(store,thread,text);matches=[]
+  for closure in config['closures']:
+   if dates and closure['kind']=='date' and closure['date']==dates[0]:matches.append(closure['id'])
+   elif not dates and holiday and closure['kind']=='annual' and (closure['month'],closure['day'])==(12,holiday_day):matches.append(closure['id'])
+  if matches:
+   config['closures']=[c for c in config['closures'] if c['id'] not in matches]
+   p=propose(store,config,text);thread['operating_proposal_id']=p['id']
+   return {'kind':'operating_proposal','operating_proposal_id':p['id'],'answer':'Review removal of the matching saved full-day closure. '+describe(config)+'\nThis does not change customer hours or saved schedules. Use Review operating hours, then Accept to remove this closure. Other closures and closed weekdays still apply.'}
+  return {'kind':'operating_clarification','answer':('The unfinished closure proposal is withdrawn. ' if withdrawn else '')+'No matching saved full-day closure was removed. Saved hours and schedules are unchanged. If a saved closure or closed weekday needs changing, review it under Full-day closures or Customer hours; an exact-date exception must not silently remove an annual rule.'}
  if re.search(r'\bclosed\b',low):
   reason=text
-  if 'christmas' in low:
-   closure={'kind':'annual','month':12,'day':25,'reason':reason};resolved='every December 25 (including '+str(today.year)+'-12-25 and '+str(today.year+1)+'-12-25)'
-  elif dates:closure={'kind':'date','date':daily.day_key(dates[0]),'reason':reason};resolved=closure['date']
+  if dates:closure={'kind':'date','date':daily.day_key(dates[0]),'reason':reason};resolved=closure['date']
+  elif holiday:
+   closure={'kind':'annual','month':12,'day':holiday_day,'reason':reason};resolved='every December '+str(holiday_day)+' (including '+str(today.year)+'-12-'+str(holiday_day)+' and '+str(today.year+1)+'-12-'+str(holiday_day)+')'
   else:
    if re.search(r'\bweekends\b',low):
     for k in ('0','6'):config['weekdays'][k]['mode']='closed'

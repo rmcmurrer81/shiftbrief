@@ -349,8 +349,8 @@
     },
     {
       "path": "browser-files.json",
-      "bytes": 1456,
-      "sha256": "28bb217ba05db329fc97c62e6ab7d1bb675b8fc69286cc0e42c2b2b0a5d80ec3"
+      "bytes": 1458,
+      "sha256": "8ff1655031a51ae2b448be964efcc349ceedce1ebf94c57c8f5b80ed4fb765e1"
     },
     {
       "path": "browser.css",
@@ -369,13 +369,13 @@
     },
     {
       "path": "operating_hours.py",
-      "bytes": 14040,
-      "sha256": "c8b88c44be5a2ce926410243304477e08993287dac9f6c8793087abf03eb1b01"
+      "bytes": 17284,
+      "sha256": "cb135472c71be78cacf04279aa54bff9368b26cf1a153d20edec02d51880bed4"
     },
     {
       "path": "operating_ui.js",
-      "bytes": 7326,
-      "sha256": "4b360874883f13df9fe576dc72a516a613f4d7d4cde18bd369fe1d6471a70b53"
+      "bytes": 7353,
+      "sha256": "542db88d2f96d0f2f6c8e7d81d080ee69d64922f6b0100703918dc79a0db0fb8"
     },
     {
       "path": "runtime/browser-store.mjs",
@@ -469,8 +469,8 @@
     },
     {
       "path": "staffing_chat.py",
-      "bytes": 10787,
-      "sha256": "cbc442bcfe9eeb565db5a2a1343424a71a0e4b0982d7ccfcab54cacdf9870771"
+      "bytes": 11888,
+      "sha256": "318404152ed22729aa25823d4b8b5345f42ed7affac5249a66fa779e3e5eba32"
     },
     {
       "path": "staffing_ui.js",

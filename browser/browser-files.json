@@ -28,12 +28,12 @@
     {
       "path": "staffing_chat.py",
       "url": "./staffing_chat.py",
-      "sha256": "cbc442bcfe9eeb565db5a2a1343424a71a0e4b0982d7ccfcab54cacdf9870771"
+      "sha256": "318404152ed22729aa25823d4b8b5345f42ed7affac5249a66fa779e3e5eba32"
     },
     {
       "path": "operating_hours.py",
       "url": "./operating_hours.py",
-      "sha256": "c8b88c44be5a2ce926410243304477e08993287dac9f6c8793087abf03eb1b01"
+      "sha256": "cb135472c71be78cacf04279aa54bff9368b26cf1a153d20edec02d51880bed4"
     },
     {
       "path": "vendor/pypdf.zip",
