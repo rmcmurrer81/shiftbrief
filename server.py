@@ -10,6 +10,7 @@ from sarah_local import run_local, ask as ask_sarah, confirm as confirm_sarah, L
 
 from voice_bridge import AppVoice
 import staffing
+import departure_coverage
 import employee_pay, employee_import, team_file, work_history, workspace_file, general_chat
 from staffing_agent import run_staffing_agent
 import shift_schedule
@@ -214,9 +215,9 @@ def handler(app):
                     query=parse_qs(path.query);self.reply(shift_schedule.export_csv(shift_schedule.latest(app.store,query.get('date',[None])[0])),content_type='text/csv')
                 elif path.path == '/api/voice/status':
                     self.reply(app.voice.status())
-                elif path.path in ('/', '/app.js', '/style.css', '/sarah_voice.js', '/staffing_ui.js', '/operating_ui.js', '/source_handoff_ui.js', '/employee_workspace_ui.js', '/dimensional_charts.js', '/dimensional_charts.css', '/question_center_ui.js', '/question_center.css', '/team_file_ui.js', '/team_file.css', '/team_insights.css', '/team_insights_ui.js', '/fresh_start.js', '/work_history_ui.js', '/work_history.css', '/workspace_file_ui.js', '/workspace_design.js', '/workspace_design.css', '/general_chat_ui.js', '/Maple-Street-Fictional-Jun-Sep-2026.shiftbrief.json'):
+                elif path.path in ('/', '/app.js', '/style.css', '/sarah_voice.js', '/staffing_ui.js', '/departure_coverage_ui.js', '/operating_ui.js', '/source_handoff_ui.js', '/employee_workspace_ui.js', '/dimensional_charts.js', '/dimensional_charts.css', '/question_center_ui.js', '/question_center.css', '/team_file_ui.js', '/team_file.css', '/team_insights.css', '/team_insights_ui.js', '/fresh_start.js', '/work_history_ui.js', '/work_history.css', '/workspace_file_ui.js', '/workspace_design.js', '/workspace_design.css', '/general_chat_ui.js', '/Maple-Street-Fictional-Jun-Sep-2026.shiftbrief.json'):
                     name = 'index.html' if path.path == '/' else path.path[1:]
-                    kind = {'index.html': 'text/html', 'app.js': 'text/javascript', 'sarah_voice.js': 'text/javascript', 'staffing_ui.js': 'text/javascript', 'operating_ui.js': 'text/javascript', 'source_handoff_ui.js': 'text/javascript', 'employee_workspace_ui.js': 'text/javascript', 'style.css': 'text/css', 'dimensional_charts.js': 'text/javascript', 'dimensional_charts.css': 'text/css', 'question_center_ui.js': 'text/javascript', 'question_center.css': 'text/css', 'team_file_ui.js': 'text/javascript', 'team_file.css': 'text/css', 'team_insights.css': 'text/css', 'team_insights_ui.js': 'text/javascript', 'fresh_start.js': 'text/javascript', 'work_history_ui.js': 'text/javascript', 'workspace_file_ui.js': 'text/javascript', 'workspace_design.js': 'text/javascript', 'workspace_design.css': 'text/css', 'general_chat_ui.js': 'text/javascript', 'work_history.css': 'text/css', 'Maple-Street-Fictional-Jun-Sep-2026.shiftbrief.json': 'application/json'}[name]
+                    kind = {'index.html': 'text/html', 'app.js': 'text/javascript', 'sarah_voice.js': 'text/javascript', 'staffing_ui.js': 'text/javascript', 'departure_coverage_ui.js': 'text/javascript', 'operating_ui.js': 'text/javascript', 'source_handoff_ui.js': 'text/javascript', 'employee_workspace_ui.js': 'text/javascript', 'style.css': 'text/css', 'dimensional_charts.js': 'text/javascript', 'dimensional_charts.css': 'text/css', 'question_center_ui.js': 'text/javascript', 'question_center.css': 'text/css', 'team_file_ui.js': 'text/javascript', 'team_file.css': 'text/css', 'team_insights.css': 'text/css', 'team_insights_ui.js': 'text/javascript', 'fresh_start.js': 'text/javascript', 'work_history_ui.js': 'text/javascript', 'workspace_file_ui.js': 'text/javascript', 'workspace_design.js': 'text/javascript', 'workspace_design.css': 'text/css', 'general_chat_ui.js': 'text/javascript', 'work_history.css': 'text/css', 'Maple-Street-Fictional-Jun-Sep-2026.shiftbrief.json': 'application/json'}[name]
                     asset = Path(__file__).parent / name
                     content = asset.read_bytes() if kind == 'application/json' else asset.read_text('utf-8-sig')
                     self.reply(content, content_type=kind)
@@ -266,12 +267,38 @@ def handler(app):
                     elif route=='employee':
                         result=staffing.save_employee(app.store,payload)
                         thread=app.store.data.setdefault('assistant_threads',{}).setdefault(app.store.production_id,{'messages':[],'pending':None});thread['staffing_form']=None;thread['messages'].append({'role':'assistant','text':'Saved '+result['name']+' and the availability you entered for '+staffing.book(app.store)['selected_week']+'. I can now suggest the week using these recorded details.','kind':'employee_saved','created':__import__('briefing').now()});app.store.save()
-                    elif route=='end':result=staffing.end_employment(app.store,payload['employee_id'],payload['date'],payload.get('reason','Owner recorded employment end'))
+                    elif route=='departure-coverage':
+                        with app.store.lock:
+                            departure_coverage.check_context(app.store,payload['employee_id'],payload.get('expected_team_id'),payload.get('expected_revision'))
+                            result=departure_coverage.analyze(app.store,payload['employee_id'],payload['date'])
+                    elif route=='end':
+                        with app.store.lock:
+                            departure_coverage.check_context(app.store,payload['employee_id'],payload.get('expected_team_id'),payload.get('expected_revision'))
+                            result=staffing.end_employment(app.store,payload['employee_id'],payload['date'],payload.get('reason','Owner recorded employment end'))
+                            try:result['departure_coverage']=departure_coverage.analyze(app.store,result['id'],result['end_date'])
+                            except Exception:
+                                result['departure_coverage_error']='The end date was saved. Coverage could not be calculated; reopen Remaining shifts to review it. No shifts were changed.'
+                            if result.get('departure_coverage'):
+                                coverage=result['departure_coverage']; summary=coverage['summary']
+                                message=(result['name']+' is recorded unavailable from '+result['end_date']+'. From '+coverage['coverage_from_date']+', the latest saved schedules still show '+str(summary['shift_count'])+' shifts and '+format(summary['net_planned_minutes']/60,'g')+' planned working hours after recorded breaks. Review the remaining-shifts report for eligible off-schedule replacements and early/late extensions. Today counts whole planned shifts, not attendance. No shifts have been changed or employees contacted.')
+                                before_message=deepcopy(app.store.data)
+                                try:
+                                    thread=app.store.data.setdefault('assistant_threads',{}).setdefault(app.store.production_id,{'messages':[],'pending':None})
+                                    thread['messages'].append({'role':'assistant','text':message,'kind':'departure_coverage','created':__import__('briefing').now()})
+                                    app.store.save(); result['departure_summary_saved']=True
+                                except Exception:
+                                    app.store.data=before_message
+                                    result['departure_summary_saved']=False
+                                    result['departure_summary_error']='The end date was saved, but the conversation summary could not be saved. The remaining-shifts report is available here.'
                     elif route=='timeoff-cancel':result=staffing.cancel_time_off(app.store,payload['employee_id'],payload['date'],payload['expected_revision'])
                     elif route=='timeoff':result=staffing.time_off(app.store,payload['employee_id'],payload['start'],payload['end'],payload.get('reason','Time off requested'))
                     elif route=='settings':result=staffing.settings(app.store,payload)
                     elif route=='week':result=staffing.select_week(app.store,payload['week_start'])
-                    elif route=='day':result=staffing.select_day(app.store,payload['date'])
+                    elif route=='day':
+                        with app.store.lock:
+                            if 'expected_team_id' in payload and payload['expected_team_id'] != app.store.production_id:
+                                raise ValueError('The selected business changed. Reopen coverage for the current business.')
+                            result=staffing.select_day(app.store,payload['date'])
                     elif route=='suggest':result=__import__('staffing_constraints').suggest_preserving(app.store,payload['week_start'])
                     elif route=='agent-plan':result=app.plan_staffing(payload)
                     elif route=='revise':result=staffing.revise_week(app.store,payload['id'],payload['sha256'],payload['days'])

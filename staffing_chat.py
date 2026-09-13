@@ -51,6 +51,44 @@ def employment_change(text,person):
  return re.fullmatch(r'(?:'+statement+'|'+instruction+')'+timing+reason+r'[.! ]*',text.strip(),re.I)
 
 
+def departure_review_reply(store,thread,person,message,proposed=''):
+ """A bound UI draft, with no employee mutation and no bare-date auto-save."""
+ thread['staffing_pending']=None
+ return reply('I opened '+person['name']+'’s employment-ending review. Enter or review the first date they will no longer be available, then choose Record end date. Nothing changes until you save; earlier work and schedule history stay intact.',
+  kind='employee_form',navigation={'screen':'employees','view':'employment_end','employee_id':person['id'],'team_id':store.production_id,'employee_revision':person.get('revision',1),'proposed_date':proposed,'reason':message})
+
+
+def reported_departure_review(store,thread,message):
+ """Affirmative departures open the existing date review; never apply it in chat."""
+ text=re.sub(r'\s+',' ',message.strip().replace('’',"'"))
+ if not re.search(r'\b(?:fired|fire|firing|quit|quitting|terminate|terminated|left the (?:company|team)|no longer works)\b',text,re.I):return None
+ person=named(store,text);pending=thread.get('staffing_pending')
+ # A subsequent bare date must not apply an older employee's pending change.
+ if pending and pending.get('kind')=='end_date':thread['staffing_pending']=None
+ negated=re.search(r"\b(?:not|never|didn't|don't|doesn't|wasn't|weren't|isn't|hasn't|haven't|won't)\b",text,re.I)
+ if negated:
+  current=(' '+person['name']+' currently has a saved end date of '+person['end_date']+'. Review their employee details if that record needs correcting.') if person and person.get('end_date') else ''
+  return reply('I have not changed any employee record. A denied departure does not open an employment-ending review. Any unfinished departure-date question is closed.'+current,kind='staffing_clarification')
+ if employment_inquiry(text):
+  if re.search(r'\b(?:fire|firing)\b',text,re.I):return reply('I can help review saved records, but I will not decide whether to fire someone. If you have already made that decision, report the departure with their full saved name. No employee record has changed.',kind='staffing_clarification')
+  return employment_record_reply(store,thread,text,person)
+ if person is None:
+  return reply('Which one saved employee has already left? Use their full saved name. I have not opened a departure review or changed any employee record.',kind='staffing_clarification')
+ name=re.escape(person['name'])
+ actor=r'(?:i|we)(?: have|\x27ve)?(?: just| already)? (?:fired|terminated)\s+'
+ passive=r'\s+(?:was|has been)(?: just| already)? fired'
+ timing=r'(?:\s+(?:(?:on|from|effective)\s+)?(?P<date>\d{4}-\d{2}-\d{2}|today|yesterday))?'
+ match=re.fullmatch(r'(?:'+actor+name+'|'+name+passive+')'+timing+r'(?:\s+because\s+[^?]+)?[.! ]*',text,re.I)
+ legacy=employment_change(text,person)
+ if match is None and legacy is None:
+  return reply('I have not changed any employee record. To report an already-decided departure, say “'+person['name']+' quit” or “I fired '+person['name']+'”, then review the first unavailable date. No decision or date has been inferred.',kind='staffing_clarification')
+ if pending and pending.get('kind')!='end_date':
+  return reply('Finish or cancel the current staff entry before opening a departure review. Your saved employees are unchanged.',kind='staffing_clarification')
+ proposed=(match.group('date') if match else legacy.group('end_date')) or ''
+ if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',proposed):proposed=''
+ return departure_review_reply(store,thread,person,message,proposed)
+
+
 def employment_date_answer(text):
  """A pending change accepts one whole date answer, not any dated message."""
  match=re.fullmatch(r'(?:yes,?\s+)?(?:(?:on|from|effective)\s+|(?:the\s+)?(?:end date|first unavailable date)\s+(?:is\s+|:\s*)|record (?:the )?end date as\s+)?(\d{4}-\d{2}-\d{2})[.! ]*',text.strip(),re.I)
@@ -89,6 +127,8 @@ def converse(store,thread,message):
  import employer_insights
  insight=employer_insights.respond(store,thread,message)
  if insight:return insight
+ departure=reported_departure_review(store,thread,message)
+ if departure:return departure
  directory=employee_directory.respond(store,message)
  if directory:return employment_read_context(thread,directory)
  pay=employee_pay.converse(store,thread,message)
@@ -139,7 +179,8 @@ def converse(store,thread,message):
   if pending['kind']=='end_date':
    end_date=employment_date_answer(text)
    if end_date is None:return reply('To record '+pending['name']+'’s previously reported departure, reply with only the first unavailable date as YYYY-MM-DD, or say cancel. I have not changed the employee record.',kind='staffing_clarification')
-   e=staff.end_employment(store,pending['employee_id'],end_date,pending['reason']);thread['staffing_pending']=None;return reply(e['name']+' is recorded unavailable from '+e['end_date']+'. Earlier schedule revisions are preserved. Review any future shifts still showing this employee; I have not silently reassigned them.')
+   person=staff.employee(store,pending['employee_id'])
+   return departure_review_reply(store,thread,person,pending['reason'],end_date)
   if pending['kind']=='sick_date':
    if not dates:return reply('Which date is '+pending['name']+' unable to work? Use YYYY-MM-DD so I review the correct saved schedule.')
    person=staff.employee(store,pending['employee_id']);key=dates[0];low='reported sick';thread['staffing_pending']=None
@@ -151,14 +192,6 @@ def converse(store,thread,message):
   match=re.fullmatch(r'(?:i (?:just )?hired|hire|add (?:an? )?employee|new employee(?: named| called)?)\s+(?!a new employee|an employee|a staff member)([\w .’\'-]{1,100})',text,re.I)
   if match and match[1].casefold() not in ('a new employee','an employee','someone','a person'):return draft(store,thread,match[1].strip(' .'))
   thread['staffing_pending']={'kind':'hire_name'};return reply('What is the new employee’s name? After that, we’ll enter the actual dates and hours they are available in the seven-day form beside our conversation.')
- if re.search(r'\b(?:quit|quitting|terminated|terminate|left the (?:company|team)|no longer works)\b',low):
-  if not person:return reply('Which saved employee is leaving? Name the employee so their history stays attached to the right person.')
-  change=employment_change(text,person)
-  if change is None:return reply('I have not changed any employment date. To report a departure, name the employee and say they quit or were terminated, with the first unavailable date as YYYY-MM-DD. Questions can only read the saved record.',kind='staffing_clarification')
-  end_date=change.group('end_date')
-  if not end_date:
-   thread['staffing_pending']={'kind':'end_date','employee_id':person['id'],'name':person['name'],'reason':text};return reply('What is the first date '+person['name']+' will no longer be available to work? Use YYYY-MM-DD. This preserves earlier schedules and the employee record.')
-  e=staff.end_employment(store,person['id'],end_date,text);return reply(e['name']+' is unavailable from '+e['end_date']+'. Earlier history is preserved; future schedules need review.')
  if re.search(r'\b(?:sick|called out|replacement|cover .*shift)\b',low):
   if not person:return reply('Which saved employee is unable to work? Name them and the date, or select a dated schedule first.')
   if not key:
