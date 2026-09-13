@@ -2,11 +2,19 @@
 
 Plan a store, office or team week with recorded employee availability, staffing coverage and dated history. Talk to Sarah, review a proposal, then accept or edit it. A new installation opens a blank business with no demo records. **Load demo** explicitly adds Maple Street, a separate fictional workplace with eight invented employees and several months of planned shifts and recorded work. An existing installation reopens its saved selected business without replacing it.
 
-## Start the desktop app
+## Download and start on Windows
 
-On Windows with Python 3.11 or newer, open **START SHIFTBRIEF.cmd**. The text, staffing and TXT/Markdown/CSV workflows use Python's standard library; there is no first-run model download, API key or pip install. An existing app-local virtual environment is reused. You can also run `python server.py --open` and open `http://127.0.0.1:8797`.
+[**Download ShiftBrief 0.1.0 for Windows**](https://github.com/rmcmurrer81/shiftbrief/releases/download/v0.1.0/ShiftBrief-Setup-0.1.0.exe) · [Release notes, portable ZIP and checksums](https://github.com/rmcmurrer81/shiftbrief/releases/tag/v0.1.0)
 
-This source checkout does not include Python, model weights or a voice model. Start with **Records · offline**; written staffing and record workflows need no account or model download.
+The free installer supports Windows 10 or newer on x64-compatible systems. Run it, follow the setup prompts, then open **ShiftBrief** from the Start menu. A desktop shortcut is optional and unchecked by default. Python and the app dependencies are included, so no separate Python setup or pip install is needed. ShiftBrief opens a local browser interface; start with **Records · offline**, which needs no account, API key or AI model.
+
+Closing the browser leaves the local server running. Use **Start → ShiftBrief → Close ShiftBrief** before upgrading or uninstalling. Uninstall through Windows Settings or the Start-menu entry; your saved business data remains. [Installer details and verification](installer/README.md) describe the tested release and its limits.
+
+### Run from source instead
+
+With Python 3.11 or newer, open **START SHIFTBRIEF.cmd**. The text, staffing and TXT/Markdown/CSV workflows use Python's standard library; an existing app-local virtual environment is reused. You can also run `python server.py --open` and open `http://127.0.0.1:8797`.
+
+The source checkout does not include Python. Neither the installer, portable ZIP nor source checkout includes AI model weights or a personal voice model. Optional AI and voice setup are separate from Records mode.
 
 The `browser/` tree and [BROWSER-BUILD.md](BROWSER-BUILD.md) preserve an earlier, separate static-browser edition. They are not synchronized with this desktop update and do not establish current desktop feature parity. Use the local server above for the current business-copy, complete-backup, recorded-work and AI-mode interfaces.
 
@@ -34,21 +42,21 @@ Overnight work is projected into separate actual calendar-date rows; 24:00 marks
 
 Sources keeps exact original lines and their revisions. Sarah can help create a source note from your exact words, requiring YES before saving it, retrieve evidence, compare changes and prepare a saved cited handoff. Conclusions and unresolved decisions stay distinct. Source quotes and long findings are paginated with complete-wording controls.
 
-PDF import is optional: install `requirements-local.txt` into your chosen runtime to enable it. Scanned PDFs need OCR outside this app. Watching a file is optional and checks only the exact selected local path; it does not scan folders.
+The Windows installer includes the PDF reader dependency. When running from source, install `requirements-local.txt` into your chosen runtime to enable PDF import. Scanned PDFs need OCR outside this app. Watching a file is optional and checks only the exact selected local path; it does not scan folders.
 
 ## Optional capabilities and contest truth
 
-**Voice is optional.** The installed local app can discover the separately installed, owner-approved `sarah-voice-pack` beside it. Enabling voice plays actual saved Sarah replies using its CPU service. The clean app ZIP excludes the voice model and all generated speech. Text remains fully usable without it.
+**Voice is optional.** The installed local app can discover the separately installed, owner-approved `sarah-voice-pack` beside it. Enabling voice plays actual saved Sarah replies using its CPU service. The installer and clean portable ZIP exclude the voice model and all generated speech. Text remains fully usable without it.
 
-**AI modes are optional and explicitly selected.** `Records · offline` uses deterministic domain code and saved records. `AI · local Ollama` and `AI · cloud Bedrock` use the separate Strands route; they require `requirements.txt`, a configured provider and a model already available to that provider. No AI mode is invoked by first startup or by the tests listed below. Cloud selection sends the question, recent conversation and selected saved facts to the configured AWS model.
+**AI modes are optional and explicitly selected.** `Records · offline` uses deterministic domain code and saved records. `AI · local Ollama` and `AI · cloud Bedrock` use the separate Strands route. The installer includes its client libraries; source users install `requirements.txt`. Both require a separately configured provider and a model already available to that provider. No AI mode is invoked by first startup or by the tests listed below. Cloud selection sends the question, recent conversation and selected saved facts to the configured AWS model.
 
-For local AI, install the optional dependencies into your chosen Python environment and set `SHIFTBRIEF_AGENT_PROVIDER=ollama`, `SHIFTBRIEF_OLLAMA_URL` to a loopback Ollama URL and `SHIFTBRIEF_MODEL` to an installed model name. For Bedrock, set `SHIFTBRIEF_AGENT_PROVIDER=bedrock`, `SHIFTBRIEF_BEDROCK_REGION`, `SHIFTBRIEF_BEDROCK_MODEL` and temporary AWS credentials in the launch environment. The app does not save credentials in business files. Provider access and cloud usage are separate from the offline workflow.
+For local AI, source users install the optional dependencies into their chosen Python environment; installer users already have the client libraries. Set `SHIFTBRIEF_AGENT_PROVIDER=ollama`, `SHIFTBRIEF_OLLAMA_URL` to a loopback Ollama URL and `SHIFTBRIEF_MODEL` to an installed model name. For Bedrock, set `SHIFTBRIEF_AGENT_PROVIDER=bedrock`, `SHIFTBRIEF_BEDROCK_REGION`, `SHIFTBRIEF_BEDROCK_MODEL` and temporary AWS credentials in the launch environment. The app does not save credentials in business files. Provider access and cloud usage are separate from the offline workflow.
 
 AI responses and staffing suggestions are reviewed by the user; the app does not choose whom to fire or send messages to employees. Demonstrate the actual selected engine when describing the project. The offline record engine is not an LLM, and this source update does not establish hackathon eligibility or submit the project.
 
 ## Data and verification
 
-Changes save on this computer under `data/`. Use **Save business copy** to download the selected business as a `.shiftbrief.json` file. On another computer, choose **Load saved business** to add it while preserving businesses already there. This portable file includes employees, contacts, pay and employee history, availability, operating settings, planned schedules and recorded work; it excludes documents and conversations.
+The installed app saves business data under `%LOCALAPPDATA%\ShiftBrief\data`, separate from its program files under `%LOCALAPPDATA%\Programs\ShiftBrief`. Source and portable runs save under their workspace’s `data/` directory. Use **Save business copy** to download the selected business as a `.shiftbrief.json` file. On another computer, choose **Load saved business** to add it while preserving businesses already there. This portable file includes employees, contacts, pay and employee history, availability, operating settings, planned schedules and recorded work; it excludes documents and conversations.
 
 Use **Back up all businesses** for a complete `.shiftbrief-workspace.json` backup, including all saved businesses, documents and their extracted revisions, handoffs and conversations. On the destination computer, choose **Restore backup from previous computer**, select that file, review its summary and confirm the restore. This replaces the destination workspace after automatically saving a complete backup of its previous state. Linked external documents remain disabled until their file paths are chosen again. Copy external original files separately; the backup does not include the app, Python, models or credentials.
 
