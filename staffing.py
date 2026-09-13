@@ -5,7 +5,7 @@ must be accepted explicitly. Hours are planning measures, not payroll/legal rule
 """
 from copy import deepcopy
 from datetime import date,timedelta
-import re,uuid
+import re,uuid,json
 from briefing import digest,now
 import shift_schedule as daily
 import operating_hours
@@ -134,15 +134,27 @@ def role_coverage(plan):
  base['segments']=rows;base['role_requirements']=requirements;base['role_missing_person_minutes']=sum((r['end']-r['start'])*sum(r['role_missing'].values()) for r in rows);return base
 
 def _proposal(store,kind,week,payload):
- value={'id':uuid.uuid4().hex[:12],'kind':kind,'created':now(),'week_start':week,'roster_sha256':roster_fingerprint(store),'schedule_sha256':schedule_fingerprint(store,week),'payload':payload};value['sha256']=stamp(value);book(store)['proposals'].append(value);book(store)['selected_week']=week;store.save();return deepcopy(value)
+ before=deepcopy(store.data) if payload.get('constraints') else None
+ value={'id':uuid.uuid4().hex[:12],'kind':kind,'created':now(),'week_start':week,'roster_sha256':roster_fingerprint(store),'schedule_sha256':schedule_fingerprint(store,week),'payload':payload};value['sha256']=stamp(value)
+ try:
+  book(store)['proposals'].append(value);book(store)['selected_week']=week;store.save()
+  if before is not None and json.loads((store.path/'state.json').read_text(encoding='utf-8'))!=store.data:raise OSError('The constrained proposal was not durably saved.')
+ except Exception:
+  if before is not None:store.data=before
+  raise
+ return deepcopy(value)
 
-def suggest_week(store,week):
+def calculate_week(store,week,*,constraints=None):
  with store.lock:
   week=week_start(week);data=book(store);cfg=data['settings']
+  if constraints:
+   import staffing_constraints as rule
+   rule.verify_policy(store,week,constraints)
   if not cfg.get('hours_confirmed') and not cfg.get('operating_hours'):raise ValueError('Review your customer opening hours and opening/closing staffing buffers first. Say the hours and weekdays to Sarah, or open Customer hours in Settings. The displayed 9am–5pm starting values are not confirmed business facts.')
   totals={e['id']:0 for e in data['employees']};plans=[];unknown=[]
   for key in days(week):
    op=operating_hours.resolve(store,key);start,end=op['staffing_open'],op['staffing_close'];boundaries=set(range(start,end,15))|{end}|{t for w in op['coverage_windows'] for t in (w['start'],w['end'])};eligible=[e for e in data['employees'] if active(e,key)]
+   if constraints:boundaries.update(t for t in rule.boundaries(constraints,key) if start<t<end)
    for e in eligible:
     if e['availability'].get(key,{}).get('status','unknown')=='unknown':unknown.append({'employee':e['name'],'date':key})
     for w in available(e,key):boundaries.update(x for x in (w['start'],w['end']) if start<x<end)
@@ -152,6 +164,7 @@ def suggest_week(store,week):
     used=set();chosen={}
     for role,needed in cfg['roles'].items():
      candidates=[e for e in eligible if qualifies(e,role) and any(w['start']<=a and w['end']>=b for w in available(e,key))]
+     if constraints:candidates=[e for e in candidates if rule.allows(constraints,e['id'],key,a,b,totals[e['id']])]
      candidates.sort(key=lambda e:(max(0,totals[e['id']]+b-a-cfg['overtime_hours']*60),0 if previous.get(e['id'])==role else 1,totals[e['id']],e['name'].casefold()))
      for e in [e for e in candidates if e['id'] not in used][:needed]:
       used.add(e['id']);chosen[e['id']]=role;totals[e['id']]+=b-a
@@ -161,6 +174,20 @@ def suggest_week(store,week):
     previous=chosen
    plan={'date':key,'open':start,'close':end,'minimum':sum(cfg['roles'].values()),'role_requirements':deepcopy(cfg['roles']),'coverage_windows':deepcopy(op['coverage_windows']),'operating_hours':op,'shifts':runs};daily.validate(plan);plans.append(plan)
   payload={'days':plans,'hours':[{'employee_id':e['id'],'name':e['name'],'minutes':totals[e['id']],'projected_overtime_minutes':max(0,totals[e['id']]-cfg['overtime_hours']*60),'preferences':e['preferences']} for e in data['employees']],'unknown_availability':unknown,'time_off':[{'employee':e['name'],'date':d,'reason':why} for e in data['employees'] for d,why in e['time_off'].items() if d in days(week)],'preferences_need_review':True,'breaks_assigned':False,'note':'Proposal uses entered dated availability and recorded roles. Free-text preferences are surfaced for owner review; they are not silently treated as parsed constraints. Lunch breaks remain to be scheduled.'}
+  return payload
+
+def suggest_week(store,week,*,agent_provenance=None,constraints=None):
+ with store.lock:
+  week=week_start(week);payload=calculate_week(store,week,constraints=constraints)
+  if agent_provenance is not None:payload['agent_provenance']=deepcopy(agent_provenance)
+  if constraints:
+   import staffing_constraints as rule
+   rule.verify_shifts(store,week,constraints,payload['days'])
+   saved=[daily.latest(store,key) for key in days(week)]
+   automatic=calculate_week(store,week)['days']
+   payload['constraints']=deepcopy(constraints);payload['saved_before']=deepcopy(saved);payload['automatic_before']=automatic
+   payload['changes_from_saved']=rule.changes(saved,payload['days']);payload['changes_from_automatic']=rule.changes(automatic,payload['days'])
+   payload['note']='The literal request and interpreted exclusions/caps are shown for review. Saved availability and employment facts remain authoritative. Lunch breaks remain to be scheduled.'
   return _proposal(store,'week',week,payload)
 
 def check_proposal(store,identity,expected):
@@ -168,6 +195,9 @@ def check_proposal(store,identity,expected):
  if not p or p.get('accepted_at') or p['sha256']!=expected or stamp({k:v for k,v in p.items() if k!='sha256'})!=expected:raise ValueError('This proposal is no longer current. Request a fresh suggestion.')
  if next((x['id'] for x in reversed(book(store)['proposals']) if x['kind']==p['kind'] and x['week_start']==p['week_start']),None)!=identity:raise ValueError('A newer suggestion exists. Review the latest proposal.')
  if p['roster_sha256']!=roster_fingerprint(store) or p['schedule_sha256']!=schedule_fingerprint(store,p['week_start']):raise ValueError('Staff details or saved schedules changed. Request a fresh suggestion before accepting.')
+ if p['payload'].get('constraints'):
+  import staffing_constraints as rule
+  rule.verify_shifts(store,p['week_start'],p['payload']['constraints'],p['payload']['days'])
  return p
 
 def accept(store,identity,expected,choice=None):
@@ -193,7 +223,8 @@ def accept(store,identity,expected,choice=None):
    for plan in plans:daily._save(store,plan,'Accepted '+p['kind']+' proposal '+p['id'],persist=False)
    daily.book(store)['selected_date']=selected if selected in days(p['week_start']) else p['week_start']
    p['accepted_at']=now();book(store).setdefault('week_reviews',{})[p['week_start']]={'at':now(),'roster_sha256':roster_fingerprint(store),'schedule_sha256':schedule_fingerprint(store,p['week_start'])};store.save()
-  except OSError:
+   if p['payload'].get('constraints') and json.loads((store.path/'state.json').read_text(encoding='utf-8'))!=store.data:raise OSError('The accepted week was not durably saved.')
+  except Exception:
    store.data=before;raise
   return {'saved':True,'dates':[plan['date'] for plan in plans]}
 
@@ -242,10 +273,12 @@ def suggest_sick(store,identity,key):
 
 def view(store,today=None):
  data=book(store);week=data['selected_week'];current=[daily.latest(store,d) for d in days(week)];staff=deepcopy(data['employees']);totals=hours_by_employee(store,week);today=today or date.today();nextweek=next_sunday(today)
+ from employee_pay import rate_on
+ for e in staff:e['pay_current']=rate_on(e,today.isoformat());e.setdefault('pay_history',[])
  review=data.get('week_reviews',{}).get(nextweek,{})
  needs_review=not all(daily.latest(store,d) for d in days(nextweek)) or review.get('roster_sha256')!=roster_fingerprint(store) or review.get('schedule_sha256')!=schedule_fingerprint(store,nextweek)
  reminder={'due':today.weekday() in (3,4,5,6) and needs_review,'week_start':nextweek,'message':'Next week needs review. Check employee availability, preferences and time off before accepting a new schedule.'}
- return {'employees':staff,'settings':deepcopy(data['settings']),'operating_hours':operating_hours.settings(store),'operating_proposals':deepcopy(data.get('operating_proposals',[])[-6:]),'selected_week':week,'selected_date':daily.book(store)['selected_date'],'days':[{'date':d,'plan':p,'coverage':role_coverage(p),'conflicts':conflicts(store,p),'history':[{'number':r['number'],'created':r['created'],'source_message':r['source_message']} for r in daily.book(store)['days'].get(d,{}).get('revisions',[])]} for d,p in zip(days(week),current)],'hours':[{'id':e['id'],'name':e['name'],'minutes':totals.get(e['id'],0),'projected_overtime_minutes':max(0,totals.get(e['id'],0)-data['settings']['overtime_hours']*60)} for e in staff],'proposals':deepcopy(data['proposals'][-8:]),'reminder':reminder,'events':deepcopy(data['events'][-30:])}
+ return {'employees':staff,'pay_proposals':deepcopy(data.get('pay_proposals',[])[-12:]),'employee_imports':deepcopy(data.get('employee_imports',[])[-8:]),'settings':deepcopy(data['settings']),'operating_hours':operating_hours.settings(store),'operating_proposals':deepcopy(data.get('operating_proposals',[])[-6:]),'selected_week':week,'selected_date':daily.book(store)['selected_date'],'days':[{'date':d,'plan':p,'coverage':role_coverage(p),'conflicts':conflicts(store,p),'history':[{'number':r['number'],'created':r['created'],'source_message':r['source_message']} for r in daily.book(store)['days'].get(d,{}).get('revisions',[])]} for d,p in zip(days(week),current)],'hours':[{'id':e['id'],'name':e['name'],'minutes':totals.get(e['id'],0),'projected_overtime_minutes':max(0,totals.get(e['id'],0)-data['settings']['overtime_hours']*60)} for e in staff],'proposals':deepcopy(data['proposals'][-8:]),'reminder':reminder,'events':deepcopy(data['events'][-30:])}
 
 def select_week(store,week):
  with store.lock:
@@ -327,6 +360,10 @@ def revise_week(store,identity,expected,plans):
   for plan in clean:
    for shift in plan['shifts']:totals[shift['employee_id']]+=shift['end']-shift['start']
   for row in payload['hours']:row['minutes']=totals[row['employee_id']];row['projected_overtime_minutes']=max(0,row['minutes']-book(store)['settings']['overtime_hours']*60)
+  if payload.get('constraints'):
+   import staffing_constraints as rule
+   rule.verify_shifts(store,p['week_start'],payload['constraints'],clean)
+   payload['changes_from_saved']=rule.changes(payload['saved_before'],clean);payload['changes_from_automatic']=rule.changes(payload['automatic_before'],clean)
   return _proposal(store,'week',p['week_start'],payload)
 
 

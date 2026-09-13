@@ -151,17 +151,19 @@ def ask(store, message, briefing_id=None):
     with store.lock:
         thread=_thread(store)
         if len(thread['messages']) >= 400:
-            raise ValueError('This production has 200 saved conversation turns. Export its handoffs and start a new production for another sequence.')
+            raise ValueError('This team has 200 saved conversation turns. Export its handoffs and start a new team workspace.')
         snapshot=store.snapshot(); lower=message.casefold(); response={'answer':'','evidence':[],'kind':'answer','snapshot_sha256':snapshot['sha256']}
         proposal=None
         briefs=store.view()['briefings']; brief=next((b for b in briefs if b['id']==briefing_id),None) if briefing_id else (briefs[-1] if briefs else None)
         mark=re.fullmatch(r'(?:mark|set)\s+(?:decision|task)\s+(\d+)\s+(done|complete|completed|open|not done)',lower.strip(' .!'))
         revise=re.fullmatch(r'(?:revise|change|edit)\s+(?:decision|task)\s+(\d+)\s*:\s*(.+)',message,re.I|re.S)
-        note = re.fullmatch(r'(?:save|add|write|record)\s+(?:a\s+)?(?:note|update)(?:\s+(?:called|titled)\s+([^:\n]{1,100}))?\s*:\s*(.+)', message, re.I | re.S)
+        note = re.fullmatch(r'(?:save|add|write|record)\s+(?:an?\s+)?(?:note|update)(?:\s+(?:called|titled)\s+([^:\n]{1,100}))?\s*:\s*(.+)', message, re.I | re.S)
         greeting = re.fullmatch(r'(?:hi|hello|hey|good morning|good evening|thanks|thank you)[!. ]*', lower)
         introduction = re.search(r'\b(?:tell me about yourself|who are you|what are you|what can you do|how (?:do|can) (?:i|we) (?:use|start)|where (?:do|should|can) (?:we|i) (?:start|begin)|help me (?:start|begin)|get started|help)\b', lower)
-        from staffing_chat import converse as staffing_converse
-        try: staffing_response = staffing_converse(store,thread,message)
+        source_read=bool(re.search(r'\b(?:sources?|documents?|evidence|quot(?:e|es|ation)|citations?|handbooks?|polic(?:y|ies)|memos?|notes?)\b|\baccording to\b',lower) and (message.rstrip().endswith('?') or re.match(r'^(?:what|where|which|who|when|how|show|find|quote|explain|read|tell me|help|according to)\b',lower.strip())))
+        if source_read: proposal=thread.get('pending')
+        from staffing_chat import converse as staffing_converse, import_request
+        try: staffing_response = None if note or (source_read and not import_request(message)) else staffing_converse(store,thread,message)
         except ValueError as exc: staffing_response = {'kind':'staffing_clarification','answer':str(exc)}
         if staffing_response:
             response.update(staffing_response)
@@ -171,13 +173,20 @@ def ask(store, message, briefing_id=None):
             proposal = {'id': uuid.uuid4().hex[:12], 'operation': 'save_source_note', 'title': title, 'text': content, 'snapshot_sha256': snapshot['sha256'], 'production_id': store.production_id}
             proposal['sha256'] = digest(proposal)
             response.update(kind='proposal', answer='Here is your first source note, using only your words:\n' + title + '\n' + content + '\nReview it and confirm YES to save it as a team document. After that, I can compare later updates and prepare a handoff.')
-        elif greeting or introduction:
+        elif (greeting or introduction) and not source_read:
             title = next((p['title'] for p in store.data['productions'] if p['id'] == store.production_id), 'this production')
-            response['answer'] = ('Hi, I’m Sarah. I help your store, office or team plan employee shifts, lunch coverage and handoffs. Say “I hired a new employee” to add a person and their dated availability, then ask me to suggest a week. We review every suggested schedule before saving it. I also keep source notes and compare updates.\n\n' + ('Let’s start with ' + title + '. Tell me the first real detail you want the next shift to know. You can say “Save a note: …” in your own words, or attach a call sheet, schedule or existing note. I’ll show the note for review before saving; you do not need a document ready to talk with me.' if not snapshot['documents'] else 'You already have ' + str(len(snapshot['documents'])) + ' source documents here. We can look at a specific topic, compare an updated version, or prepare the next handoff. What part should we work through first?'))
+            response['answer'] = ('Hi, I’m Sarah. I help your store, office or team plan employee shifts, lunch coverage and handoffs. Say “I hired a new employee” to add a person and their dated availability, then ask me to suggest a week. We review every suggested schedule before saving it. I also keep source notes and compare updates.\n\n' + ('Let’s start with ' + title + '. Tell me the first real detail you want the next shift to know. You can say “Save a note: …” in your own words, or attach a employee list, schedule or existing note. I’ll show the note for review before saving; you do not need a document ready to talk with me.' if not snapshot['documents'] else 'You already have ' + str(len(snapshot['documents'])) + ' source documents here. We can look at a specific topic, compare an updated version, or prepare the next handoff. What part should we work through first?'))
             response['kind'] = 'onboarding'
         elif not snapshot['documents']:
             thread['onboarding_context'] = message
-            response.update(kind='onboarding', answer='We can begin here in the conversation. I kept your message, but there is no source document in this team yet. Tell me one real detail the next person needs, starting with “Save a note:”. I’ll show your exact words for review. If you already have a schedule or call sheet, attach it and we can work from that instead. What would you like the first note to say?')
+            proposal=thread.get('pending')
+            source_request=re.search(r'\b(?:sources?|documents?|evidence|quot(?:e|es|ation)|citations?|handbooks?|polic(?:y|ies)|memos?|notes?)\b|\baccording to\b|\bwhat changed\b', lower)
+            if source_request:
+                response.update(kind='answer', answer='There is no source document saved in this team yet, so I cannot answer from source evidence. Open Sources to add the document or paste its exact text, then ask about it. No approval, policy, date or completion has been inferred.')
+            else:
+                from employee_directory import summary as employee_summary
+                data=employee_summary(store)
+                response.update(kind='onboarding', employee_summary=data, answer='I have not matched that request to a supported action. '+data['team_name']+' has '+str(data['total_records'])+' employees saved ('+str(data['active_count'])+' active). Open Employees to add or import people, review contacts, or record hourly pay. Open Settings for business hours and coverage; open Schedule to review shifts, availability and lunch breaks. You can say “employees”, “I hired a new employee”, or “suggest next week”. Changes are reviewed before saving; no employee or schedule was changed.')
         elif mark or revise:
             match=mark or revise; number=int(match[1]); position=number-1
             if not brief or not 0<=position<len(brief['decisions']):
@@ -243,9 +252,13 @@ def ask(store, message, briefing_id=None):
             else:
                 response['answer']='These are the matching saved source statements; they do not independently establish approval:\n'+'\n'.join('• '+r['quote'] for r in rows)
                 response['evidence']=_public_evidence(snapshot,rows)
+        if staffing_response and response['kind'] in ('employee_directory','employee_pay','employee_import','employee_comparison','employer_insight','work_history'):
+            proposal=thread.get('pending')
         thread['pending']=proposal
         thread['last_refs']=list(dict.fromkeys(c['ref'] for c in response['evidence']))
-        thread['messages'].extend([{'role':'user','text':message,'created':now()},{'role':'assistant','text':response['answer'],'evidence':response['evidence'],'kind':response['kind'],'snapshot_sha256':snapshot['sha256'],'created':now()}])
+        public_extra={k:deepcopy(response[k]) for k in ('navigation','employee_summary','hours_chart','pay_form','pay_read','availability_read','employee_comparison','employer_insight','work_history') if k in response}
+        if 'navigation' in response: thread['navigation']=deepcopy(response['navigation'])
+        thread['messages'].extend([{'role':'user','text':message,'created':now()},{'role':'assistant','text':response['answer'],'evidence':response['evidence'],'kind':response['kind'],'snapshot_sha256':snapshot['sha256'],'created':now(),**public_extra}])
         store.save()
         return {**response,'proposal':deepcopy(proposal)}
 

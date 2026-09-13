@@ -6,19 +6,15 @@ __pycache__/
 *.log
 .env
 evidence/
-
 # Local build/runtime and private owner state
 build/
 .build-cache/
 runtime/
-.venv/
 venv/
-data/
 attachments/
 exports/
 artifacts/
 *.sqlite3*
-.env
 .env.*
 !*.example
 *-token.txt
@@ -29,4 +25,3 @@ sarah-voice-pack/
 *.jpg
 *.jpeg
 *.png
-__pycache__/

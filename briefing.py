@@ -55,7 +55,7 @@ class Store:
         self.lock = threading.RLock()
         file = self.path / 'state.json'
         self.data = json.loads(file.read_text('utf-8')) if file.exists() else {'documents': [], 'briefings': [], 'watches': []}
-        self.data.setdefault('productions', [{'id': 'main', 'title': 'My first team'}])
+        self.data.setdefault('productions', [{'id': 'main', 'title': 'Your business' if not file.exists() else 'My first team'}])
         self.data.setdefault('current_production', 'main')
 
     def save(self):
@@ -70,7 +70,7 @@ class Store:
 
     def create_production(self, title):
         if not isinstance(title,str) or not title.strip() or len(title)>100:
-            raise ValueError('Give this production a name of 1 to 100 characters.')
+            raise ValueError('Give this team a name of 1 to 100 characters.')
         with self.lock:
             item={'id':uuid.uuid4().hex[:10],'title':title.strip()}
             self.data['productions'].append(item)
@@ -81,7 +81,7 @@ class Store:
     def select_production(self, production_id):
         with self.lock:
             if not any(x['id']==production_id for x in self.data['productions']):
-                raise ValueError('Production not found.')
+                raise ValueError('Team not found.')
             self.data['current_production']=production_id
             self.save()
 
@@ -92,7 +92,7 @@ class Store:
                 doc = self.document(document_id)
             else:
                 if not title.strip():
-                    raise ValueError('Name this production document.')
+                    raise ValueError('Name this team document.')
                 doc = {'id': uuid.uuid4().hex[:10], 'production_id': self.production_id, 'title': title.strip()[:160], 'revisions': []}
                 self.data['documents'].append(doc)
             sha = digest(lines)
@@ -132,6 +132,17 @@ class Store:
             import staffing
             result.pop('shift_schedules',None)
             result['staffing'] = staffing.view(self)
+            # Presentation metadata only: opening the app never loads a demo or
+            # replaces an existing business. Check all saved dates, not just this week.
+            selected = next(p for p in self.data['productions'] if p['id'] == self.production_id)
+            book = self.data.get('staffing', {}).get(self.production_id, {})
+            result['workspace_setup'] = {
+                'empty_business': not any((book.get('employees'), book.get('events'), book.get('proposals'),
+                    self.data.get('shift_schedules', {}).get(self.production_id, {}).get('days'),
+                    self.data.get('work_records', {}).get(self.production_id), result['documents'],
+                    result['briefings'], result['watches'], result['assistant'].get('messages'))),
+                'fictional_demo': bool(selected.get('fictional_example') or selected.get('staffing_sample') or selected.get('sample')),
+            }
             result['comparisons'] = [update_packet(x) for x in self.snapshot()['documents']]
             return result
 
@@ -273,7 +284,7 @@ def update_packet(doc):
 def load_sample(store):
     if any(x['title'].endswith('[fictional sample]') and x.get('production_id','main')==store.production_id for x in store.data['documents']):
         return
-    samples = [('Harbor shoot call sheet', 'Production: Harbor, day 3\nCrew call: 07:00\nExterior pier scene: 09:00\nLocation: East Pier\nTransport coordinator: Lena\n',
+    samples = [('Harbor shoot employee list', 'Production: Harbor, day 3\nCrew call: 07:00\nExterior pier scene: 09:00\nLocation: East Pier\nTransport coordinator: Lena\n',
         'Production: Harbor, day 3\nCrew call: 08:30\nInterior warehouse scene: 10:00\nLocation: Warehouse B\nTransport coordinator: Lena\nReason: heavy rain forecast\n'),
         ('Transport note', 'Van pickup: 06:15 at Unit Base\nDestination: East Pier\nDriver: Sam\n', 'Van pickup: 06:15 at Unit Base\nDestination: East Pier\nDriver: Sam\nTransport has not received a revised pickup time or destination.\n')]
     for title, old, new in samples:

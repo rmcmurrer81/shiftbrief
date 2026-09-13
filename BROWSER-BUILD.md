@@ -1,3 +1,5 @@
+> Legacy browser edition: this build guide and `browser/` source preserve the earlier release. The September 12 desktop update is in the repository root and is not synchronized into this browser bundle. Use the root README for the current application.
+
 # Rebuild the no-install browser edition
 
 Maintainer prerequisite: Python3.10+ with internet access to the pinned public dependency URLs. No pip packages, API keys, model, cloud account or payment are required. The deployed browser app requires no Python installation on the judge device.

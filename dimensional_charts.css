@@ -1,0 +1,38 @@
+.sb3d {
+  --sb3d-ink: #f5f3ff;
+  margin: 0;
+  padding: 24px 22px 15px;
+  color: var(--sb3d-ink);
+  background: radial-gradient(ellipse at 50% 0, #30254d 0, #16182d 48%, #101526 100%);
+  border: 1px solid #ffffff1c;
+  border-radius: 22px;
+  box-shadow: 0 18px 44px #090d2228, inset 0 1px 0 #ffffff09;
+  font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow: hidden;
+  isolation: isolate;
+}
+.sb3d * { box-sizing: border-box; }
+.sb3d-heading { font-size: 22px; font-weight: 750; letter-spacing: -.035em; }
+.sb3d-description { margin: 5px 0 3px; color: #b6b9d2; font-size: 13px; }
+.sb3d-scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-color: #706695 #14182a; scrollbar-width: thin; border-radius: 12px; }
+.sb3d-scroll:focus-visible { outline: 2px solid #d5c4ff; outline-offset: 2px; }
+.sb3d-scene { position: relative; margin-inline: auto; }
+.sb3d-art { position: absolute; inset: 0; display: block; max-width: none; font-family: inherit; }
+.sb3d-column {
+  position: absolute; top: 0; height: 376px; display: block;
+  padding: 0; border: 1px solid transparent; border-radius: 11px;
+  color: var(--sb3d-ink); background: transparent;
+  font: inherit; text-align: center; -webkit-tap-highlight-color: transparent;
+}
+button.sb3d-column { cursor: pointer; touch-action: pan-x pan-y; }
+button.sb3d-column:hover { background: linear-gradient(#ffffff05, #ffffff00 65%, #ffffff08); }
+button.sb3d-column:focus-visible { outline: 2px solid var(--sb3d-color); outline-offset: -4px; background: #ffffff05; }
+.sb3d-column[aria-pressed="true"] .sb3d-name { color: var(--sb3d-color); background: #ffffff0b; box-shadow: inset 0 -2px 0 var(--sb3d-color); }
+.sb3d-value { position: absolute; top: var(--sb3d-value-top); left: 1px; right: 1px; font-size: 15px; font-weight: 750; line-height: 1.1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 2px 9px #080c26; overflow-wrap: anywhere; }
+.sb3d-name { position: absolute; left: 5px; right: 5px; top: 335px; min-height: 37px; padding: 4px 3px 5px; border-radius: 6px; font-size: 12px; font-weight: 650; line-height: 1.25; color: #d5d8ec; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.sb3d-footnote { margin: 2px 0 0; color: #a1a9c5; font-size: 11px; }
+.sb3d-notice { margin: 10px 0 0; color: #ffd4a9; font-size: 12px; }
+.sb3d-empty { display: grid; place-items: center; min-height: 210px; margin-top: 18px; border: 1px dashed #79789588; border-radius: 14px; color: #c0c6dd; background: linear-gradient(140deg, #46437618, transparent); }
+@media (max-width: 520px) { .sb3d { padding: 19px 12px 12px; border-radius: 17px; } .sb3d-heading { font-size: 20px; } }
+@media (prefers-reduced-motion: reduce) { .sb3d *, .sb3d *::before, .sb3d *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+@media (forced-colors: active) { .sb3d { border: 1px solid CanvasText; } .sb3d-value, .sb3d-name, .sb3d-footnote, .sb3d-description { color: CanvasText; text-shadow: none; } button.sb3d-column { border-color: ButtonText; } .sb3d-art { opacity: .35; } }

@@ -1,3 +1,41 @@
+# ShiftBrief verification · September 12, 2026
+
+This update brings the current desktop business workspace into the repository. It does not update or re-certify the separate legacy `browser/` bundle.
+
+## Current targeted result
+
+**41 tests passed on Python 3.12.10** using the existing app environment:
+
+```sh
+python -B -m unittest -v test_first_run_migration test_onboarding test_staffing test_staffing_integrity test_operating_hours
+```
+
+The eight new startup/migration cases cover a fresh blank business with no demo load; reopening an existing fictional business without changing its saved bytes; explicitly loading the demo while preserving existing businesses; recognizing saved historical dates/conversations; additive business export/import with employees, pay history, schedules and recorded work; full-workspace export/preview/restore with exact document revisions and conversations; the automatic before-restore backup and safe repeated restore request; corruption rejection; and the normal loopback HTTP business/backup routes. The bundled demo is explicitly fictional: eight invented employees, 122 saved schedule dates and 385 completed-work records.
+
+The remaining 33 targeted tests cover onboarding, staffing integrity and operating hours. No model calls, external network requests, live-business changes or voice generation occur in this suite. The changed JavaScript files passed Node syntax checks and Python sources compiled in memory. Browser acceptance for this source revision is reported separately; the historical device matrix below is not a fresh claim for the new layout.
+
+The synced repository also passed those 41 tests plus the 14 retained `test_language_corrections` regressions: **55 tests passed** on Python 3.12.10. Negated employment changes, closure corrections and Christmas Eve/Day distinctions remain covered. Add `test_language_corrections` to the command above to reproduce that combined suite.
+
+## Browser review of this update
+
+Actual browser checks on isolated blank and fictional-demo installations verified the blank business startup, Create business dialog and visible **FICTIONAL DEMO** label. A business file was downloaded from the demo, selected through the file chooser in the blank installation and loaded successfully with eight employees and 122 saved schedule dates. The complete-backup download modal also worked. Full-workspace restoration is covered by the CPU and normal HTTP roundtrip above; it was not claimed as an additional browser restore test.
+
+The desktop update preserved the existing saved-state bytes and the previous source backup. These checks establish the stated technical workflows, not owner or hackathon acceptance.
+
+## Known full-suite limits
+
+The first broad check of the desktop candidate ran 68 tests under base Python 3.12 and reported **3 failed assertions and 2 import errors**. The unchanged desktop source ran its 60 tests with the same failures/errors, establishing they predate this first-run change:
+
+- The old Sarah coordinator/follow-up test expects a document lookup, while the installed employee route asks for a saved employee record. Its two assertions fail. This update preserves Sarah's current behavior.
+- The old runtime-settings test expects a dictionary without the current `provider` key.
+- Base Python lacked optional `pypdf` and `strands`; the PDF and fake-model Strands boundary tests could not import those packages. The existing production app environment has both. The core first-run/migration workflow does not require them.
+
+The initial new-test run also exposed two invalid test request identifiers; the harness was corrected to use the existing restore API's UUID-hex format, and all eight new tests passed. No backend backup-format change was needed. This report does not claim the entire old test suite is green.
+
+## Historical verification retained from the repository
+
+The following September 7 notes apply to their original source/layout and are retained as historical evidence. They are not rerun results for this update. Existing tests and the legacy browser source remain in the repository.
+
 # ShiftBrief staffing verification · 2026-09-07
 
 These checks establish specific behavior, not owner/judge acceptance. The owner has not yet accepted the new staffing workflow.

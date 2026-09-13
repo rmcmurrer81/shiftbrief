@@ -15,22 +15,13 @@ Decision text should describe a useful next action, not claim it was performed. 
 Use plain language. Do not send messages or change source files. After save succeeds, stop with one short sentence.
 '''
 
-def runtime_settings():
-    url=os.environ.get('SHIFTBRIEF_OLLAMA_URL','http://127.0.0.1:11434').rstrip('/')
-    parsed=urlparse(url)
-    if parsed.scheme!='http' or parsed.hostname not in {'127.0.0.1','localhost','::1'} or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment:
-        raise ValueError('SHIFTBRIEF_OLLAMA_URL must name a local Ollama HTTP service.')
-    model=os.environ.get('SHIFTBRIEF_MODEL','qwen3.5:9b').strip()
-    if not model or len(model)>150:
-        raise ValueError('SHIFTBRIEF_MODEL must name an installed model.')
-    return {'url':url,'model':model}
+from agent_provider import runtime_settings, make_model
 
 
-def run_agent(store, instruction='Prepare the next-shift handoff and flag changes that need a decision.', progress=None, agent_factory=None):
+def run_agent(store, instruction='Prepare the next-shift handoff and flag changes that need a decision.', progress=None, agent_factory=None, provider=None):
     from strands import Agent, tool
-    from strands.models.ollama import OllamaModel
     from strands.hooks.events import BeforeModelCallEvent
-    settings = runtime_settings()
+    settings = runtime_settings(provider)
     snapshot = store.snapshot()
     if not snapshot['documents']:
         raise ValueError('Add a production document first.')
@@ -94,15 +85,13 @@ def run_agent(store, instruction='Prepare the next-shift handoff and flag change
     if agent_factory:
         agent = agent_factory(tools=[read_updates, save_shift_brief], system_prompt=SYSTEM)
     else:
-        model = OllamaModel(host=settings['url'], model_id=settings['model'], temperature=0.15,
-            max_tokens=2200, options={'num_ctx': 12288}, additional_args={'think': False},
-            ollama_client_args={'timeout': 120, 'trust_env': False})
+        model = make_model(settings, temperature=0.15, max_tokens=2200)
         agent = Agent(model=model, tools=[read_updates, save_shift_brief], system_prompt=SYSTEM, callback_handler=None, hooks=[BoundLoop()])
     try:
         result = agent('Owner request: ' + str(instruction)[:1500])
     except Exception as exc:
         if not saved:
-            raise RuntimeError('The local Strands agent did not finish: ' + str(exc)[:250]) from exc
+            raise RuntimeError('The Strands agent did not finish: ' + str(exc)[:250]) from exc
     if not saved:
         raise RuntimeError('The agent did not save a valid briefing. Your sources and exact comparisons are still available; try a more focused request.')
     saved[0]['elapsed_seconds'] = round(time.monotonic() - start, 3)

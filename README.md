@@ -1,14 +1,14 @@
-> Current source release: this repository includes the verified Desktop implementation and a separate no-install browser edition. See [BROWSER-BUILD.md](BROWSER-BUILD.md) to generate the static browser assets from pinned dependencies. Runtime binaries, personal state and the optional voice pack are excluded. Desktop setup requirements below apply to maintainers/users running the local server, not to judges opening the hosted browser build. Historical contest and test notes below retain their original verification scope.
+# ShiftBrief · Business workspace
 
-# ShiftBrief · Team desk
-
-Plan a real store, office or team week with recorded employee availability, staffing coverage and dated history. Talk to Sarah, review a proposal, then accept or edit it. Your own team starts empty. **Try fictional team** opens a separate example with five clearly fictional employees.
+Plan a store, office or team week with recorded employee availability, staffing coverage and dated history. Talk to Sarah, review a proposal, then accept or edit it. A new installation opens a blank business with no demo records. **Load demo** explicitly adds Maple Street, a separate fictional workplace with eight invented employees and several months of planned shifts and recorded work. An existing installation reopens its saved selected business without replacing it.
 
 ## Start the desktop app
 
 On Windows with Python 3.11 or newer, open **START SHIFTBRIEF.cmd**. The text, staffing and TXT/Markdown/CSV workflows use Python's standard library; there is no first-run model download, API key or pip install. An existing app-local virtual environment is reused. You can also run `python server.py --open` and open `http://127.0.0.1:8797`.
 
-The clean desktop ZIP does not include Python or a voice model. The no-install hosted-browser edition is a separate delivery route; do not describe this ZIP as working on a computer with no Python installed.
+This source checkout does not include Python, model weights or a voice model. Start with **Records · offline**; written staffing and record workflows need no account or model download.
+
+The `browser/` tree and [BROWSER-BUILD.md](BROWSER-BUILD.md) preserve an earlier, separate static-browser edition. They are not synchronized with this desktop update and do not establish current desktop feature parity. Use the local server above for the current business-copy, complete-backup, recorded-work and AI-mode interfaces.
 
 ## Your first week
 
@@ -28,7 +28,7 @@ The clean desktop ZIP does not include Python or a voice model. The no-install h
 - Near the weekend, an in-app reminder points to the upcoming Sunday week if it has not been reviewed or its relevant saved state changed. There is no background email or automatic outreach.
 - **History** revisits exact dated revisions. Restoring creates a new revision and must satisfy current availability/hours constraints. **Export week** downloads shifts CSV, exact coverage intervals CSV and the dated JSON plans in one ZIP. No contact directory or unrelated team is included.
 
-Overnight work is projected into separate actual calendar-date rows; 24:00 marks midnight at the end of the shown date. Unknown availability is not inferred. Free-text preferences are shown for owner review, not silently interpreted as hard scheduling rules. The scheduler is a bounded deterministic proposal engine, not an optimal-schedule guarantee, general language model, attendance system, payroll system or labor-law assessment.
+Overnight work is projected into separate actual calendar-date rows; 24:00 marks midnight at the end of the shown date. Unknown availability is not inferred. Free-text preferences are shown for owner review, not silently interpreted as hard scheduling rules. The scheduler is a bounded deterministic proposal engine, not an optimal-schedule guarantee, general language model, automatic attendance capture, payroll system or labor-law assessment. Completed work is entered separately from planned shifts; comparisons show the saved dates and available records.
 
 ## Sources and handoffs remain available
 
@@ -40,10 +40,28 @@ PDF import is optional: install `requirements-local.txt` into your chosen runtim
 
 **Voice is optional.** The installed local app can discover the separately installed, owner-approved `sarah-voice-pack` beside it. Enabling voice plays actual saved Sarah replies using its CPU service. The clean app ZIP excludes the voice model and all generated speech. Text remains fully usable without it.
 
-**Strands/Ollama is optional and explicit.** Installing `requirements.txt` enables the real Strands agent route, which uses `read_updates` and `save_shift_brief` with an installed Ollama model. The free staffing/conversation engine is deterministic local code; it is not an LLM and must not be represented as the contest-required Strands agent by itself. The Agents for Humans rules require actual Strands work; retain the separately tested Strands route and describe the distinction honestly. No hosted-model credentials are needed for the standard team desk.
+**AI modes are optional and explicitly selected.** `Records · offline` uses deterministic domain code and saved records. `AI · local Ollama` and `AI · cloud Bedrock` use the separate Strands route; they require `requirements.txt`, a configured provider and a model already available to that provider. No AI mode is invoked by first startup or by the tests listed below. Cloud selection sends the question, recent conversation and selected saved facts to the configured AWS model.
+
+For local AI, install the optional dependencies into your chosen Python environment and set `SHIFTBRIEF_AGENT_PROVIDER=ollama`, `SHIFTBRIEF_OLLAMA_URL` to a loopback Ollama URL and `SHIFTBRIEF_MODEL` to an installed model name. For Bedrock, set `SHIFTBRIEF_AGENT_PROVIDER=bedrock`, `SHIFTBRIEF_BEDROCK_REGION`, `SHIFTBRIEF_BEDROCK_MODEL` and temporary AWS credentials in the launch environment. The app does not save credentials in business files. Provider access and cloud usage are separate from the offline workflow.
+
+AI responses and staffing suggestions are reviewed by the user; the app does not choose whom to fire or send messages to employees. Demonstrate the actual selected engine when describing the project. The offline record engine is not an LLM, and this source update does not establish hackathon eligibility or submit the project.
 
 ## Data and verification
 
-All local state is under `data/`, with separate teams, employee record history, immutable dated schedule revisions and reviewed proposal hashes. Back up this directory for your own records. The public package excludes owner data, configuration, credentials, logs, generated speech and private media.
+Changes save on this computer under `data/`. Use **Save business copy** to download the selected business as a `.shiftbrief.json` file. On another computer, choose **Load saved business** to add it while preserving businesses already there. This portable file includes employees, contacts, pay and employee history, availability, operating settings, planned schedules and recorded work; it excludes documents and conversations.
+
+Use **Back up all businesses** for a complete `.shiftbrief-workspace.json` backup, including all saved businesses, documents and their extracted revisions, handoffs and conversations. On the destination computer, choose **Restore backup from previous computer**, select that file, review its summary and confirm the restore. This replaces the destination workspace after automatically saving a complete backup of its previous state. Linked external documents remain disabled until their file paths are chosen again. Copy external original files separately; the backup does not include the app, Python, models or credentials.
+
+The source package excludes saved workspace data, configuration, credentials, logs and generated speech. The only included business file is the explicitly fictional Maple Street demo.
 
 See `TEST_RESULTS.md` for the measured workflow and responsive checks, and `BROWSER_API.md` for the reusable standard-library core and hosted-browser port contract.
+
+## Verify this update
+
+From the repository root, run:
+
+```sh
+python -B -m unittest -v test_first_run_migration test_onboarding test_staffing test_staffing_integrity test_operating_hours
+```
+
+The 41 targeted tests passed on Python 3.12.10. After the repository sync, those tests plus its 14 retained language-correction regressions passed again (55 total). They use isolated temporary stores and loopback HTTP; no real model or external service is called. [TEST_RESULTS.md](TEST_RESULTS.md) records the exact scope and known older full-suite failures. Application source uses the MIT license in [LICENSE](LICENSE); the preserved browser dependencies carry their separate upstream notices.
